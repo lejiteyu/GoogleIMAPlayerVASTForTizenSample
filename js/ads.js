@@ -5,7 +5,9 @@ var adsLoaded = false;
 var adContainer;
 var adDisplayContainer;
 var adsLoader;
-
+var posElement;
+var durElement;
+var playing = false;
 var adsManager;
 //load進 共用的資料
 jQuery.loadScript = function(url, callback) {
@@ -18,7 +20,20 @@ jQuery.loadScript = function(url, callback) {
 }
 if (typeof someObject == 'undefined') $.loadScript('https://imasdk.googleapis.com/js/sdkloader/ima3.js', function() {
 	 console.log("IMA initialize.");
+
 	 videoElement = document.getElementById('video-element');
+   posElement = document.getElementById('position-element');
+   durElement = document.getElementById('duration-element');
+	 videoElement.addEventListener('loadedmetadata', function() {
+		  // 取得視訊的播放時間
+      getPlayTime();
+		});
+    videoElement.addEventListener("playing", (event) => {
+      console.log("Video is no longer paused");
+      hidePlayButton();
+      playing= true;
+      getPlayTime();
+    });
 	  initializeIMA();
 	  videoElement.addEventListener('play', function(event) {
 	    loadAds(event);
@@ -30,6 +45,23 @@ if (typeof someObject == 'undefined') $.loadScript('https://imasdk.googleapis.co
 	  playButton.focus({ preventScroll: false });
 	 
 }); //讀取右側內容
+
+//獲取播放時間
+function getPlayTime(){
+  var duration = videoElement.duration;
+  var currentPosition = videoElement.currentTime;
+  posElement.innerHTML=currentPosition;
+  durElement.innerHTML=duration;
+  console.log('視訊播放時間：'+currentPosition +'/'+ duration + ' 秒');
+  if(playing) {
+    setTimeout(() => {
+      getPlayTime();
+    }, 500);
+  }else{
+	  showPlayButton();
+  }
+ 
+}
 
 window.addEventListener('load', function(event) {
   
@@ -65,16 +97,18 @@ function initializeIMA() {
   // Let the AdsLoader know when the video has ended
   videoElement.addEventListener('ended', function() {
 //    adsLoader.contentComplete();
-	  loadAds(event);
+	  loadAds();
   });
 
   var adsRequest = new google.ima.AdsRequest();
-  adsRequest.adTagUrl = //'https://pubads.g.doubleclick.net/gampad/ads?iu=/21646396938/frid_androidtv_generic_mr_1&description_url=https%3A%2F%2Fvideo.friday.tw%2F&tfcd=0&npa=0&sz=640x360%7C640x390%7C1024x768&gdfp_req=1&output=vast&unviewed_position_start=1&env=vp&impl=s&correlator=&cust_params=friday_contenttype%3D4%26friday_contentid%3D1127';
+  adsRequest.adTagUrl = 
+  'https://pubads.g.doubleclick.net/gampad/ads?iu=/21646396938/frid_androidtv_hotdrama_pr_1&description_url=https%3A%2F%2Fvideo.friday.tw%2F&tfcd=0&npa=0&sz=640x360%7C640x390%7C1024x768&gdfp_req=1&output=vast&unviewed_position_start=1&env=vp&impl=s&correlator=';
+  //'https://pubads.g.doubleclick.net/gampad/ads?iu=/21646396938/frid_androidtv_generic_mr_1&description_url=https%3A%2F%2Fvideo.friday.tw%2F&tfcd=0&npa=0&sz=640x360%7C640x390%7C1024x768&gdfp_req=1&output=vast&unviewed_position_start=1&env=vp&impl=s&correlator=&cust_params=friday_contenttype%3D4%26friday_contentid%3D1127';
 	  //'https://pubads.g.doubleclick.net/gampad/ads?iu=/21775744923/external/single_preroll_skippable&sz=640x480&ciu_szs=300x250%2C728x90&gdfp_req=1&output=vast&unviewed_position_start=1&env=vp&impl=s&correlator=';
-	  'https://pubads.g.doubleclick.net/gampad/ads?' +
-      'iu=/21775744923/external/single_ad_samples&sz=640x480&' +
-      'cust_params=sample_ct%3Dlinear&ciu_szs=300x250%2C728x90&' +
-      'gdfp_req=1&output=vast&unviewed_position_start=1&env=vp&impl=s&correlator=';
+	  // 'https://pubads.g.doubleclick.net/gampad/ads?' +
+    //   'iu=/21775744923/external/single_ad_samples&sz=640x480&' +
+    //   'cust_params=sample_ct%3Dlinear&ciu_szs=300x250%2C728x90&' +
+    //   'gdfp_req=1&output=vast&unviewed_position_start=1&env=vp&impl=s&correlator=';
 
   // Specify the linear and nonlinear slot sizes. This helps the SDK to
   // select the correct creative if multiple are returned.
@@ -82,15 +116,17 @@ function initializeIMA() {
   adsRequest.linearAdSlotHeight = videoElement.clientHeight;
   adsRequest.nonLinearAdSlotWidth = videoElement.clientWidth;
   adsRequest.nonLinearAdSlotHeight = videoElement.clientHeight / 3;
-
   // Pass the request to the adsLoader to request ads
   adsLoader.requestAds(adsRequest);
 }
 
 function onAdsManagerLoaded(adsManagerLoadedEvent) {
   // Instantiate the AdsManager from the adsLoader response and pass it the video element
+
+  var adsRenderingSettings = new google.ima.AdsRenderingSettings();
+  adsRenderingSettings.loadVideoTimeout=20*1000;
   adsManager = adsManagerLoadedEvent.getAdsManager(
-      videoElement);
+      videoElement, adsRenderingSettings);
   
   //監聽 VAST 事件
   adsManager.addEventListener(
@@ -116,7 +152,9 @@ function adContainerClick(event) {
   console.log("ad container clicked");
   if(videoElement.paused) {
     videoElement.play();
+    playing= true;
   } else {
+    playing= false;
     videoElement.pause();
   }
 }
@@ -134,15 +172,20 @@ function onAdLoaded(adEvent) {
   var ad = adEvent.getAd();
   if (!ad.isLinear()) {
     videoElement.play();
+    playing= true;
   }
 }
 
 function onContentPauseRequested() {
+  playing= false;
 	videoElement.pause();
+	showPlayButton();
 }
 
 function onContentResumeRequested() {
 	videoElement.play();
+  playing= true;
+  hidePlayButton();
 }
 
 function loadAds(event) {
@@ -153,8 +196,14 @@ function loadAds(event) {
   adsLoaded = true;
 
   // Prevent triggering immediate playback when ads are loading
-  event.preventDefault();
-
+  try{
+	  if(event!=undefined)
+		    event.preventDefault();
+  }catch (e) {
+	// TODO: handle exception
+	  console.log("event error:"+e);
+  }
+ 
   console.log("loading ads");
   
 //Initialize the container. Must be done via a user action on mobile devices.
@@ -163,6 +212,7 @@ function loadAds(event) {
 
   var width = videoElement.clientWidth;
   var height = videoElement.clientHeight;
+  playing= true;
   try {
     adsManager.init(width, height, google.ima.ViewMode.NORMAL);
     adsManager.start();
@@ -172,3 +222,11 @@ function loadAds(event) {
     videoElement.play();
   }
 }
+
+function hidePlayButton() {
+    document.getElementById('play-button').style.display = 'none';
+  }
+
+  function showPlayButton() {
+    document.getElementById('play-button').style.display = 'block';
+  }

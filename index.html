@@ -4,21 +4,23 @@
     <title>IMA HTML5 Simple Demo</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="css/style.css">
   </head>
   <body>
     <div id="page-content">
       <div id="video-container">
-        <video id="video-element">
+        <video id="video-element" controls>
           <source src="https://storage.googleapis.com/interactive-media-ads/media/android.mp4">
           <source src="https://storage.googleapis.com/interactive-media-ads/media/android.webm">
         </video>
         <div id="ad-container"></div>
       </div>
       <button id="play-button">Play</button>
+      <div>
+        <div id='position-element'>00:00</div> / <div id="duration-element">00:00</div>
+      </div>
     </div>
     <!-- jQuery Lib -->
-    Copy
 	<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
      <script type="text/javascript" src="jquery-3.6.3.min.js"></script>
      <script src="//imasdk.googleapis.com/js/sdkloader/ima3.js"></script>
