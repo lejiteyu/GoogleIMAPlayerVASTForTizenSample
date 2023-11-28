@@ -4,6 +4,12 @@
  * Ref:https://developers.google.com/interactive-media-ads/docs/sdks/html5/client-side?hl=zh-tw
  * Ref:Google Ads HTML5 DAI IMA SDK for Tizen Smart TVs :https://github.com/googleads/googleads-ima-tizen-dai
  */
+  //'https://ad.doubleclick.net/ddm/pfadx/N1708956.5077296FRIDAY_TW/B30699153.377742570;'+
+    // 'sz=0x0;dsp_xappb_0_=[ctv_appid];ord=[timestamp];dc_lat=;dc_rdid=;tag_for_child_directed_treatment=;tfua=;'+
+    // 'dc_tdv=1;dcmt=text/xml;dc_sdk_apis=[APIFRAMEWORKS];dc_omid_p=[OMIDPARTNER];gdpr=${GDPR};gdpr_consent=${GDPR_CONSENT_755};dc_mpos=[BREAKPOSITION];'+
+    // 'ltd=&cust_params=friday_contenttype%3D2%26friday_contentid%3D34';
+    // 'https://pubads.g.doubleclick.net/gampad/ads?iu=/76486173/fet/frid_androidtv_generic_mr_1&description_url=net.fetnet.fetvod.tv&tfcd=0&npa=0&sz=640x360&gdfp_req=1&output=vast&unviewed_position_start=1&env=vp&impl=s&correlator=[timestamp]&cust_params=friday_contenttype%3D2%26friday_contentid%3D34' 
+      
     //Google sample
     //https://pubads.g.doubleclick.net/gampad/ads?iu=/21775744923/external/single_ad_samples&sz=640x480&cust_params=sample_ct%3Dlinear&ciu_szs=300x250%2C728x90&gdfp_req=1&output=vast&unviewed_position_start=1&env=vp&impl=s&correlator=
    
@@ -22,19 +28,21 @@ var ADPlayer={
     adPlayCompleteCallBack:undefined,
     adLoadedCallBack:undefined,
     adPlayStartCallBack:undefined,
+    adManagerCallBack:undefined,
     adTime:0,
     adTimeOld:-1,
-    init:function(adUrl,adPlayCompleteCallBack,adLoadedCallBack,adPlayStartCallBack){
+    init:function(adUrl,adPlayCompleteCallBack,adLoadedCallBack,adPlayStartCallBack,adManagerCallBack){
         ADPlayer.adPlayCompleteCallBack = adPlayCompleteCallBack;
         ADPlayer.adLoadedCallBack=adLoadedCallBack;
         ADPlayer.adPlayStartCallBack=adPlayStartCallBack;
+        ADPlayer.adManagerCallBack=adManagerCallBack;
         if(adUrl==""){
             adTagUrl = 'https://pubads.g.doubleclick.net/gampad/ads?' +
       'iu=/21775744923/external/single_ad_samples&sz=640x480&' +
       'cust_params=sample_ct%3Dlinear&ciu_szs=300x250%2C728x90&gdfp_req=1&' +
       'output=vast&unviewed_position_start=1&env=vp&impl=s&correlator=';
         }
-        Log.d(ADPlayer.TAG,"initializing adUrl:"+adUrl);
+        console.log("initializing adUrl:"+adUrl);
         ADPlayer.adUrl=adUrl;
         ADPlayer.setUpIMA(adUrl);
     },
@@ -42,33 +50,43 @@ var ADPlayer={
      * Sets up IMA ad display container, ads loader, and makes an ad request.
      */
     setUpIMA:function(adUrl){
-       Log.d(ADPlayer.TAG,"initializing IMA");
+       console.log("initializing IMA");
         // Create the ad display container.
-        ADPlayer.adContainer = document.getElementById('ad-container');
-        ADPlayer.videoElement = document.getElementById('video-element');
-        ADPlayer.adDisplayContainer = new google.ima.AdDisplayContainer(ADPlayer.adContainer, ADPlayer.videoElement);
+        if(ADPlayer.adContainer==undefined)
+            ADPlayer.adContainer = document.getElementById('ad-container');
+        if(ADPlayer.videoElement==undefined)
+            ADPlayer.videoElement = document.getElementById('video-element');
+        if(ADPlayer.adDisplayContainer==undefined)
+            ADPlayer.adDisplayContainer = new google.ima.AdDisplayContainer(ADPlayer.adContainer, ADPlayer.videoElement);
 
         // Create ads loader.
-        ADPlayer.adsLoader = new google.ima.AdsLoader(ADPlayer.adDisplayContainer);
-        // Listen and respond to ads loaded and error events.
-        ADPlayer.adsLoader.addEventListener(
+        if( ADPlayer.adsLoader==undefined){
+            ADPlayer.adsLoader = new google.ima.AdsLoader(ADPlayer.adDisplayContainer);
+           
+    
+            ADPlayer.adsLoader.addEventListener(
+                google.ima.AdErrorEvent.Type.AD_ERROR, ADPlayer.onAdError, false);
+            
+            // An event listener to tell the SDK that our content video
+            // is completed so the SDK can play any post-roll ads.
+            ADPlayer.videoElement.addEventListener('ended', function() {
+                // An ad might have been playing in the content element, in which case the
+                // content has not actually ended.
+                ADPlayer.adsLoader.contentComplete();
+            });
+        }
+
+         // Listen and respond to ads loaded and error events.
+         ADPlayer.adsLoader.addEventListener(
             google.ima.AdsManagerLoadedEvent.Type.ADS_MANAGER_LOADED,
             ADPlayer.onAdsManagerLoaded, false);
+       
 
-        ADPlayer.adsLoader.addEventListener(
-            google.ima.AdErrorEvent.Type.AD_ERROR, ADPlayer.onAdError, false);
-
-        // An event listener to tell the SDK that our content video
-        // is completed so the SDK can play any post-roll ads.
-        ADPlayer.videoElement.addEventListener('ended', function() {
-            // An ad might have been playing in the content element, in which case the
-            // content has not actually ended.
-            ADPlayer.adsLoader.contentComplete();
-        });
+      
         // Request video ads.
         var adsRequest = new google.ima.AdsRequest();
         adsRequest.adTagUrl = adUrl;
-        Log.d(ADPlayer.TAG," adUrl:"+adsRequest.adTagUrl);
+        console.log(" adUrl:"+adsRequest.adTagUrl);
         // Specify the linear and nonlinear slot sizes. This helps the SDK to
         // select the correct creative if multiple are returned.
         adsRequest.linearAdSlotWidth = ADPlayer.videoElement.clientWidth;
@@ -80,7 +98,7 @@ var ADPlayer={
     },
     playAds:function(event){
          // Initialize the container. Must be done through a user action on mobile devices.
-
+    	console.log("play ads");
          // Prevent triggering immediate playback when ads are loading
         try{
             if(event!=undefined)
@@ -89,7 +107,7 @@ var ADPlayer={
         // TODO: handle exception
             console.log("event error:"+e);
         }
-        Log.d(ADPlayer.TAG,"#AD loading ads");
+        console.log("#AD loading ads");
         ADPlayer.videoElement.load();
         ADPlayer.adDisplayContainer.initialize();
 
@@ -103,11 +121,11 @@ var ADPlayer={
             // start at this time; the call will be ignored for ad rules.
             ADPlayer.adsManager.start();
             ADPlayer.isAdLoading=true;
-        Log.d(ADPlayer.TAG,"#AD start ads");
+        console.log("#AD start ads");
         } catch (adError) {
             // An error may be thrown if there was a problem with the VAST response.
             ADPlayer.adPlayCompleteCallBack();
-            Log.e(ADPlayer.TAG,"#AD start adError:"+adError);
+            console.log("#AD start adError:"+adError);
         }
     },
     onAdsManagerLoaded:function(adsManagerLoadedEvent){
@@ -122,7 +140,7 @@ var ADPlayer={
         // Add listeners to the required events.//監聽 VAST 事件
         ADPlayer.adsManager.addEventListener(google.ima.AdErrorEvent.Type.AD_ERROR, ADPlayer.onAdError);
 
-        Log.d(ADPlayer.TAG,"#AD  adsManager init");
+        console.log("#AD  adsManager init");
 
         //觸發播放及暫停事件
         ADPlayer.adsManager.addEventListener(
@@ -141,12 +159,13 @@ var ADPlayer={
         ADPlayer.adsManager.addEventListener(google.ima.AdEvent.Type.LOADED, ADPlayer.onAdEvent);
         ADPlayer.adsManager.addEventListener(google.ima.AdEvent.Type.STARTED, ADPlayer.onAdEvent);
         ADPlayer.adsManager.addEventListener(google.ima.AdEvent.Type.COMPLETE, ADPlayer.onAdEvent);
+        ADPlayer.adManagerCallBack( ADPlayer.adsManager);
     },
     onAdEvent:function(adEvent){
         // Retrieve the ad from the event. Some events (for example,
         // ALL_ADS_COMPLETED) don't have ad object associated.
         let ad = adEvent.getAd();
-        Log.d(ADPlayer.TAG,"#AD  onAdEvent ad:"+JSON.stringify(ad));
+        console.log("#AD  onAdEvent ad:"+JSON.stringify(ad));
         switch (adEvent.type) {
             case google.ima.AdEvent.Type.LOADED:
                 // This is the first event sent for an ad - it is possible to
@@ -165,6 +184,7 @@ var ADPlayer={
                 if (ad.isLinear()) {
                 // For a linear ad, a timer can be started to poll for
                 // the remaining time.
+                ADPlayer.isAdPlaying = true;
                 ADPlayer.intervalTimer = setInterval(
                     function() {
                         // Example: var remainingTime = adsManager.getRemainingTime();
@@ -177,15 +197,17 @@ var ADPlayer={
                 // This event indicates the ad has finished - the video player
                 // can perform appropriate UI actions, such as removing the timer for
                 // remaining time detection.
+                console.log("#AD  onAdError ad COMPLETE:");
                 if (ad.isLinear()) {
                     clearInterval(ADPlayer.intervalTimer);
                 }
                 ADPlayer.isAdLoading = false;
-                Log.d( ADPlayer.TAG,"COMPLETE")
+                ADPlayer.isAdPlaying = false;
+                console.log("#AD COMPLETE")
                 if(ADPlayer.adsManager!=undefined){
                     ADPlayer.adsManager.destroy();
                     ADPlayer.adsManager=undefined;
-                    Log.e(ADPlayer.TAG,"#AD  ADPlayer.adsManager destroy()");
+                    console.log("#AD  ADPlayer.adsManager destroy()");
                 }
                 ADPlayer.adPlayCompleteCallBack();
                 break;
@@ -194,24 +216,30 @@ var ADPlayer={
     onAdError:function(adErrorEvent){
         // Handle the error logging.
         ADPlayer.isAdLoading = false;
-        Log.e(ADPlayer.TAG,"#AD  onAdError ad:"+adErrorEvent.getError());
+        console.log("#AD  onAdError ad:"+adErrorEvent.getError());
         if(ADPlayer.adsManager!=undefined){
             ADPlayer.adsManager.destroy();
             ADPlayer.adsManager=undefined;
-            Log.e(ADPlayer.TAG,"#AD  ADPlayer.adsManager destroy()");
+            console.log("#AD  ADPlayer.adsManager destroy()");
         }
-         
+        if(!ADPlayer.isAdPlaying){
+            console.log("#AD  onAdError ad COMPLETE:");
+            ADPlayer.isAdLoading = false;
+            ADPlayer.isAdPlaying = false;
+            ADPlayer.adPlayCompleteCallBack(); 
+        }
+        
     },
     onContentPauseRequested:function(){
         ADPlayer.isAdPlaying = true;
         ADPlayer.videoElement.pause();
-        Log.e(ADPlayer.TAG,"#AD  onAd pause:");
+        console.log("#AD  onAd pause:");
         // This function is where you should setup UI for showing ads (for example,
         // display ad timer countdown, disable seeking and more.)
         // setupUIForAds();
     },
     onContentResumeRequested:function(){
-        Log.e(ADPlayer.TAG,"#AD  onAd Resume Requested:");
+        console.log("#AD  onAd Resume Requested:");
         ADPlayer.isAdPlaying = false;
         if (!ADPlayer.isContentFinished) {
             ADPlayer.adPlayCompleteCallBack()
